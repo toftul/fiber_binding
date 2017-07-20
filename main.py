@@ -89,7 +89,6 @@ def G0zz(r1, r2, wl):
 #  ##############################
 #
 #
-# for normal incidence kz = 0
 # let particles has the same hight -> rho = rho'
 def A_prime(wl):
     return(0)
@@ -101,9 +100,10 @@ def F(wl):
     return(0)
 def P11NN(wl):
     return(0)
-def Gszz(rho, rho_prime, wl=wave_length):
-    G = -0.5 * P11NN(wl) * krho1(wl)**2 / (k1(wl)**2) * \
-        sp.hankel1(0, krho1 * rho) * sp.hankel1(0, krho1 * rho_prime)
+def Gszz(rho, rho_prime, dz, wl=wave_length):
+    G = -0.5 * P11NN(wl) * krho1(wl)**2 / (k1(wl)**2) \
+        * sp.hankel1(0, krho1 * rho) * sp.hankel1(0, krho1 * rho_prime) \
+        * np.exp(1j * kz * np.abs(dz))
 
 # mu = alpha_eff * E0
 def alpha_eff(wl):

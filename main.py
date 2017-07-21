@@ -15,9 +15,26 @@ import scipy.special as sp
 import const
 
 
+#
+#   1 rho                 
+#   |                  |------> E0
+#   |                  |  
+#   |    /-\           |      incident wave
+#   |   | * |          v k1
+#   |    \-/
+#   |
+#  ##############################
+#  ~                            ~
+#  ~           FIBER            ~ -----> z
+#  ~                            ~
+#  ##############################
+#
+#
+# let particles has the same hight -> rho = rho'
+
+
 
 # ## Creating variables
-# ## TO CHANGE VARIABLES GO TO prm.py file nearby!
 E0_charastic = 1.  # [V/m]
 time_charastic = 1.  # [s]
 a_charastic_nm = 1.  # [nm]
@@ -84,22 +101,6 @@ def G0zz(x1, y1, z1, x2, y2, z2, wl):
     return(Gzz)
 
 
-#
-#   1 rho                 
-#   |                  |------> E0
-#   |                  |  
-#   |    /-\           |      incident wave
-#   |   | * |          v k1
-#   |    \-/
-#   |
-#  ##############################
-#  ~                            ~
-#  ~           FIBER            ~ -----> z
-#  ~                            ~
-#  ##############################
-#
-#
-# let particles has the same hight -> rho = rho'
 
 # waveguide wave vector 
 def k1_wg():
@@ -187,19 +188,17 @@ def Gszz(rho, rho_prime, dz, wl = wave_length_wg):
 
 # mu_12 = alpha_eff * E0
 # ( 1,2 -- only if rho1 = rho2 )
-def alpha_eff(wl):
+def alpha_eff(rho1, rho2, z, wl):
     # Gs(r1, r2) = Gs(r2,r1)
-    GGG = Gszz(dip_r[0, 0], dip_r[0, 0], 0., wl) + \
-          Gszz(dip_r[0, 0], dip_r[1, 0], dip_r[0, 2] - dip_r[1, 2], wl) + \
-          G0zz(dip_r[0, 0], dip_r[0, 1], dip_r[0, 2], 
-               dip_r[1, 0], dip_r[1, 1], dip_r[1, 2], wl)
+    GGG = Gszz(rho1, rho2, 0, wl) + Gszz(rho1, rho2, z, wl) + \
+          G0zz(rho1, 0., 0., rho2, 0., z, wl)
     return(alpha0 / (1 - alpha0 * k1_inc(wl)**2 / const.epsilon0 * GGG))
     
 
 # z may be a numpy array! Should be fast
 # considered that d/dz mu = 0
 def force(rho1, rho2, z, wl=wave_length):
-    al_eff = alpha_eff(wl)
+    al_eff = alpha_eff(rho1, rho2, z, wl)
     Fz = 0.5 * al_eff * al_eff.conjugate() * \
          E0_charastic * E0_charastic.conjugate() / const.epsilon0
          
@@ -214,7 +213,12 @@ def force(rho1, rho2, z, wl=wave_length):
               
     RE = k1_inc(wl)**2 * (G_plus - G_minus) * 0.5 / dz
     
-    return(Fz * RE.real)
+    return(Fz.real * RE.real)
 
 
-    
+def plot_F(rho1, rho2, z):
+    f = force(rho1, rho2, z)
+    plt.plot(z, f)
+    plt.grid()
+    plt.show()
+

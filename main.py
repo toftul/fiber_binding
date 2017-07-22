@@ -15,49 +15,57 @@ import scipy.special as sp
 import const
 
 
-#
-#   1 rho                 
-#   |                  |------> E0
-#   |                  |  
-#   |    /-\           |      incident wave
-#   |   | * |          v k1
-#   |    \-/
-#   |
-#  ##############################
-#  ~                            ~
-#  ~           FIBER            ~ -----> z
-#  ~                            ~
-#  ##############################
-#
-#
-# let particles has the same hight -> rho = rho'
+#                
+#                   1 rho                 
+#                   |                  |------> E0
+#                   |                  |  
+#                   |    /-\           |      incident wave
+#                   |   | * |          v k1
+#                   |    \-/
+#                   |
+#  1 krho          ##############################
+#  |               ~                            ~
+#  ------>         ~           FIBER            ~ -----> z
+#        kz        ~                            ~
+#                  ##############################
+#                
+#                
+#                 let particles has the same hight -> rho = rho'
 
 
 
 # ## Creating variables
-E0_charastic = 1.  # [V/m]
-time_charastic = 1.  # [s]
-a_charastic_nm = 1.  # [nm]
-density_of_particle = 1.  # [kg / m^3]
-wave_length = 1.  # [nm]
-wave_length_wg = 1.  # [nm]
-gamma = 1.  # phenomenological parameter
-epsilon_fiber = 1.
-epsilon_particle = 1.
-epsilon_m = 1.
-alpha0 = 1.
+theta = 30 * np.pi / 180
+E0_charastic = 1e4  # [V/m]
+time_charastic = 10e-3  # [s]
+a_charastic_nm = 3000.  # [nm]
+# Silicon
+density_of_particle = 2328.  # [kg / m^3]
+wave_length = 350.  # [nm]
+wave_length_wg = 550.  # [nm]
+gamma = 0.  # phenomenological parameter
+epsilon_fiber = 4.7  # Glass
+epsilon_m = 1.  # Air
 
 a_charastic = a_charastic_nm * 1e-9  # [m]
 
+def epsilon_particle(wl):
+    # Silicon
+    return(11.64)
+
+def alpha0(wl = wave_length):
+    return(4 * np.pi * const.epsilon0 * a_charastic**3 * 
+           (epsilon_particle(wl) - epsilon_m) / (epsilon_particle(wl) + 2 * epsilon_m))
+
+
+
 # fiber radius
-rho_c = 1.
+rho_c = 200e-9  # Wu and Tong, Nanophotonics 2, 407 (2013)
 
 # must be int
 n_mode = 1  # for HE11
 
-hight = 1. 
-
-n_times_k0 = 60
+hight = 5e-9  
 
 tmax = 1e-3
 dt = tmax / 1000
@@ -69,8 +77,6 @@ dip_r[0] = np.array([hight, 0., 0.]) * 1e-9
 dip_r[1] = np.array([hight, 0., 5*a_charastic_nm]) * 1e-9
 dip_v = np.zeros([2, 3])
 dip_mu = np.zeros([2, 3], dtype=complex)
-
-
 
 
 
@@ -101,19 +107,18 @@ def G0zz(x1, y1, z1, x2, y2, z2, wl):
     return(Gzz)
 
 
-
 # waveguide wave vector 
 def k1_wg():
-    return(1)
+    return(2 * np.pi / wave_length_wg)
 def k2_wg():
     return(np.sqrt(epsilon_fiber) * k1_wg())
 
 def kz_wg():
-    return(1)
+    return(k2_wg() * np.cos(theta))
 def krho1_wg():
-    return(1)
+    return(k1_wg() * np.sin(theta))
 def krho2_wg():
-    return(1)
+    return(k2_wg() * np.sin(theta))
 
 def A_():
     return(1/krho2_wg()**2 - 1/krho1_wg()**2)
@@ -192,7 +197,7 @@ def alpha_eff(rho1, rho2, z, wl):
     # Gs(r1, r2) = Gs(r2,r1)
     GGG = Gszz(rho1, rho2, 0, wl) + Gszz(rho1, rho2, z, wl) + \
           G0zz(rho1, 0., 0., rho2, 0., z, wl)
-    return(alpha0 / (1 - alpha0 * k1_inc(wl)**2 / const.epsilon0 * GGG))
+    return(alpha0(wl) / (1 - alpha0(wl) * k1_inc(wl)**2 / const.epsilon0 * GGG))
     
 
 # z may be a numpy array! Should be fast
@@ -216,9 +221,22 @@ def force(rho1, rho2, z, wl=wave_length):
     return(Fz.real * RE.real)
 
 
-def plot_F(rho1, rho2, z):
-    f = force(rho1, rho2, z)
-    plt.plot(z, f)
+def plot_F(rho1, rho2, z, wl=wave_length):
+    f = force(rho1, rho2, z, wl)
+    plt.plot(z*1e9, f*1e9)
+    plt.xlabel(r'$\Delta z$, nm')
+    plt.ylabel(r'$Fz$, nN')
+    plt.grid()
+    plt.show()
+    
+def plot_F_wl(rho1, rho2, z, wl):
+    f = force(rho1, rho2, z, wl)
+    plt.plot(wl*1e9, f*1e9)
+    plt.xlabel(r'$\lambda$, nm')
+    plt.ylabel(r'$Fz$, nN')
     plt.grid()
     plt.show()
 
+plot_F(hight, hight, np.linspace(2*a_charastic, 100000*a_charastic, 300), 302.7e-9)
+
+plot_F_wl(hight, hight, 30*a_charastic, np.linspace(302, 304, 400)*1e-9)

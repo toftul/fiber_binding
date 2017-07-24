@@ -12,10 +12,11 @@ from scipy.interpolate import interp1d
 
 # speed of light
 c = 299792458  # [m/s]
-# vacuum permittivity
-epsilon0 = 1 / (4 * 3.141592653589793 * c**2 * 1e-7)  # [F/m]
 # vacuum permeability
-mu0 = 4 * 3.141592653589793 * 1e-7  # [N/A^2]
+mu0 = 4 * np.pi * 1e-7  # [H / m]
+# vacuum permittivity
+epsilon0 = 1 / (mu0 * c**2)  # [F/m]
+
 # elementary charge
 e = 1.6e-19  # [C]
 # electron mass
@@ -84,7 +85,6 @@ gold_k = np.array([13.78, 11.21, 9.519, 8.145, 7.15, 6.35, 5.663,
 # 'material': wave_length [nm], Eps', Eps''
 #
 h = 4.135667662e-15  # [eV s]
-c = 3e8  # [m / s]
 
 Epsilon = {
     'copper': np.array([1e9 * h * c / energy_space, copper_n**2 - copper_k**2, 2 * copper_n * copper_k]),

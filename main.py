@@ -5,11 +5,11 @@ Main project file
 
 # import standart libs
 import numpy as np
-import scipy
-from scipy.integrate import ode, quad
-from scipy import interpolate
+#import scipy
+#from scipy.integrate import ode, quad
+#from scipy import interpolate
 import matplotlib.pyplot as plt
-import progressbar
+#import progressbar
 import scipy.special as sp
 # import my libs
 import const
@@ -38,34 +38,34 @@ import const
 theta = 30 * np.pi / 180
 E0_charastic = 1e4  # [V/m]
 time_charastic = 10e-3  # [s]
-a_charastic_nm = 3000.  # [nm]
+a_charastic = 100e-9 # [m]
 # Silicon
 density_of_particle = 2328.  # [kg / m^3]
-wave_length = 350.  # [nm]
-wave_length_wg = 550.  # [nm]
+wave_length = 350e-9  # [nm]
+wave_length_wg = 550e-9  # [nm]
 gamma = 0.  # phenomenological parameter
 epsilon_fiber = 4.7  # Glass
 epsilon_m = 1.  # Air
 
-a_charastic = a_charastic_nm * 1e-9  # [m]
 
 def epsilon_particle(wl):
     # Silicon
     return(11.64)
 
-def alpha0(wl = wave_length):
+def alpha0(wl):
     return(4 * np.pi * const.epsilon0 * a_charastic**3 * 
            (epsilon_particle(wl) - epsilon_m) / (epsilon_particle(wl) + 2 * epsilon_m))
 
 
 
 # fiber radius
-rho_c = 200e-9  # Wu and Tong, Nanophotonics 2, 407 (2013)
+# Wu and Tong, Nanophotonics 2, 407 (2013)
+rho_c = 200e-9  # [m]
 
 # must be int
 n_mode = 1  # for HE11
 
-hight = 5e-9  
+hight = 5-9  # [m]
 
 tmax = 1e-3
 dt = tmax / 1000
@@ -73,22 +73,17 @@ dz = a_charastic / 100
 
 # r = {rho=x, y, z}
 dip_r = np.zeros([2, 3])
-dip_r[0] = np.array([hight, 0., 0.]) * 1e-9
-dip_r[1] = np.array([hight, 0., 5*a_charastic_nm]) * 1e-9
+dip_r[0] = np.array([hight, 0., 0.])
+dip_r[1] = np.array([hight, 0., 5*a_charastic])
 dip_v = np.zeros([2, 3])
 dip_mu = np.zeros([2, 3], dtype=complex)
 
 
-
-
 m_charastic = 4 / 3 * np.pi * a_charastic ** 3 * density_of_particle  # [kg]
+
 step_num = int(tmax / dt)
 time_space = np.linspace(0, tmax, step_num + 1)
 
-
-
-
-z_for_force_calc = np.linspace(0, 30)
 
 # incident wave vector
 def k1_inc(wl):
@@ -202,7 +197,7 @@ def alpha_eff(rho1, rho2, z, wl):
 
 # z may be a numpy array! Should be fast
 # considered that d/dz mu = 0
-def force(rho1, rho2, z, wl=wave_length):
+def force(rho1, rho2, z, wl):
     al_eff = alpha_eff(rho1, rho2, z, wl)
     Fz = 0.5 * al_eff * al_eff.conjugate() * \
          E0_charastic * E0_charastic.conjugate() / const.epsilon0
@@ -223,20 +218,27 @@ def force(rho1, rho2, z, wl=wave_length):
 
 def plot_F(rho1, rho2, z, wl=wave_length):
     f = force(rho1, rho2, z, wl)
-    plt.plot(z*1e9, f*1e9)
-    plt.xlabel(r'$\Delta z$, nm')
-    plt.ylabel(r'$Fz$, nN')
+    plt.rcParams.update({'font.size': 13})
+    plt.figure(figsize=(7.24, 4.24))
+    plt.plot(z*1e6, f)
+    plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9))
+    plt.xlabel(r'$\Delta z$, $\mu$m')
+    plt.ylabel(r'$Fz$, N')
     plt.grid()
     plt.show()
     
 def plot_F_wl(rho1, rho2, z, wl):
     f = force(rho1, rho2, z, wl)
-    plt.plot(wl*1e9, f*1e9)
+    plt.rcParams.update({'font.size': 13})
+    plt.figure(figsize=(7.24, 4.24))
+    plt.plot(wl*1e9, f)
+    plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\Delta z$ = %.1f $\mu$m' % (a_charastic*1e9, rho_c*1e9, z*1e6))
     plt.xlabel(r'$\lambda$, nm')
-    plt.ylabel(r'$Fz$, nN')
+    plt.ylabel(r'$Fz$, N')
     plt.grid()
     plt.show()
 
-plot_F(hight, hight, np.linspace(2*a_charastic, 100000*a_charastic, 300), 302.7e-9)
-
-plot_F_wl(hight, hight, 30*a_charastic, np.linspace(302, 304, 400)*1e-9)
+plt.xkcd()        # on
+#plt.rcdefaults()  # off
+plot_F_wl(hight, hight, 30*a_charastic, np.linspace(200, 1200, 400)*1e-9)
+plot_F(hight, hight, np.linspace(2*a_charastic, 100000*a_charastic, 300), 800e-9)

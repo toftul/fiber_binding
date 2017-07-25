@@ -76,17 +76,17 @@ gap = 5e-9  # [m]
 dz = a_charastic / 100
 
 # r = {rho=x, y, z}
-dip_r = np.zeros([2, 3])
-dip_r[0] = np.array([rho_c + gap, 0., 0.])
-dip_r[1] = np.array([rho_c + gap, 0., 5*a_charastic])
-dip_v = np.zeros([2, 3])
-dip_mu = np.zeros([2, 3], dtype=complex)
+#dip_r = np.zeros([2, 3])
+#dip_r[0] = np.array([rho_c + gap, 0., 0.])
+#dip_r[1] = np.array([rho_c + gap, 0., 5*a_charastic])
+#dip_v = np.zeros([2, 3])
+#dip_mu = np.zeros([2, 3], dtype=complex)
 
 
-m_charastic = 4 / 3 * np.pi * a_charastic ** 3 * density_of_particle  # [kg]
+#m_charastic = 4 / 3 * np.pi * a_charastic ** 3 * density_of_particle  # [kg]
 
-step_num = int(tmax / dt)
-time_space = np.linspace(0, tmax, step_num + 1)
+#step_num = int(tmax / dt)
+#time_space = np.linspace(0, tmax, step_num + 1)
 
 
 # incident wave vector

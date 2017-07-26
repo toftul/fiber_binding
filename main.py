@@ -23,10 +23,10 @@ import const
 #                   |   | * |          v k1
 #                   |    \-/
 #                   |
-#  1 krho          ##############################
-#  |               ~                            ~
-#  ------>         ~           FIBER            ~ -----> z
-#        kz        ~                            ~
+#                  ##############################
+#                  ~                            ~
+#                  ~           FIBER            ~ -----> z
+#                  ~                            ~
 #                  ##############################
 #                
 #                
@@ -273,6 +273,22 @@ def plot_G_z(rho1, rho2, z, wl):
     plt.xlabel(r'$\Delta z$, $\mu$m')
     plt.ylabel('Greens function')
     #plt.ylim(-1e-18, 1e-18)
+    plt.grid()
+    plt.show()
+    
+def plot_kz():
+    plt.rcParams.update({'font.size': 14})
+    lam = np.linspace(200, 4200, 200) * 1e-9
+    omega = 2*np.pi*const.c/lam
+    plt.xlabel(r'$k z$, m$^{-1}$')
+    plt.ylabel(r'$\omega$, s$^{-1}$')
+    plt.xlim(0, np.max(kz_wg(omega)) + np.max(kz_wg(omega))/20)
+    plt.ylim(0, np.max(omega) + np.max(omega)/20)
+    plt.plot(kz_wg(omega), omega)
+    plt.plot(omega/const.c, omega, linestyle='--', color='black')
+    plt.plot(np.sqrt(epsilon_fiber)*omega/const.c, omega, linestyle='--', color='black')
+    plt.plot(np.ones(len(omega))*2*np.pi/rho_c, omega, linestyle='--', dashes=(5, 10), color='gray')
+    plt.text(2*np.pi/rho_c*1.05, 0.2e16, r'$\frac{2\pi}{\rho_c}$')
     plt.grid()
     plt.show()
 

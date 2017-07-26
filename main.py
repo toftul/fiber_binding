@@ -248,14 +248,14 @@ def plot_F(rho1, rho2, z, wl):
     plt.show()
     
 def plot_alpha_z(rho1, rho2, z, wl):
-    al = alpha_eff(rho1,rho2, z, wl)
+    al = alpha_eff(rho1,rho2, z, wl)/alpha0(wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     plt.plot(z*1e6, al)
     plt.legend()
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
     plt.xlabel(r'$\Delta z$, $\mu$m')
-    plt.ylabel(r'$\alpha_{eff}$')
+    plt.ylabel(r'$\alpha_{eff} / \alpha_0$')
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
     plt.show()    

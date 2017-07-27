@@ -287,9 +287,8 @@ def plot_kz():
     plt.plot(kz_wg(omega), omega)
     plt.plot(omega/const.c, omega, linestyle='--', color='black')
     plt.plot(np.sqrt(epsilon_fiber)*omega/const.c, omega, linestyle='--', color='black')
-    plt.plot(np.ones(len(omega))*2*np.pi/rho_c, omega, linestyle='--', dashes=(5, 10), color='gray')
+    plt.plot(np.ones(len(omega))*2*np.pi/rho_c, omega, linestyle='--', dashes=(5, 3), color='gray')
     plt.text(2*np.pi/rho_c*1.05, 0.2e16, r'$\frac{2\pi}{\rho_c}$')
-    plt.grid()
     plt.show()
 
 #plt.xkcd()        # on

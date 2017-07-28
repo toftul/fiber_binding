@@ -35,17 +35,34 @@ import const
 
 
 # ## Creating variables
+P_laser = 25e-3  # [W]
+R_focus = 10e-6  # [m]
+
+Intensity = P_laser / (np.pi * R_focus**2)  # [W/m^2]
+
+E0_charastic = np.sqrt(0.5 * const.Z0 * Intensity)
+
 # theta = 30 * np.pi / 180
-E0_charastic = 1e4  # [V/m]
+#E0_charastic = 1e4  # [V/m]
 #time_charastic = 10e-3  # [s]
-a_charastic = 100e-9 # [m]
+a_charastic = 0.1e-6 # [m]
 # Silicon
-density_of_particle = 2328.  # [kg / m^3]
+# density_of_particle = 2328.  # [kg / m^3]
 # wave_length = 350e-9  # [nm]
 # wave_length_wg = 450e-9  # [nm]
 gamma = 0.  # phenomenological parameter
-epsilon_fiber = 4.7  # Glass
+epsilon_fiber = 2.07  # SiO2
 epsilon_m = 1.  # Air
+
+
+# fiber radius
+# Wu and Tong, Nanophotonics 2, 407 (2013)
+rho_c = 0.2e-6  # [m]
+
+# must be int
+n_mode = 1  # for HE11
+
+gap = 5e-9  # [m]
 
 
 def fd_dist(x, mu, T):
@@ -53,23 +70,12 @@ def fd_dist(x, mu, T):
 
 
 def epsilon_particle(wl):
-    # Silicon
-    return(11.64)
+    # Polystyrene
+    return(2.5)
 
 def alpha0(wl):
     return(4 * np.pi * const.epsilon0 * a_charastic**3 * 
            (epsilon_particle(wl) - epsilon_m) / (epsilon_particle(wl) + 2 * epsilon_m))
-
-
-
-# fiber radius
-# Wu and Tong, Nanophotonics 2, 407 (2013)
-rho_c = 200e-9  # [m]
-
-# must be int
-n_mode = 1  # for HE11
-
-gap = 5e-9  # [m]
 
 #tmax = 1e-3
 #dt = tmax / 1000
@@ -201,7 +207,7 @@ def alpha_eff(rho1, rho2, z, wl):
     GGG = Gszz(rho1, rho2, 0, wl) + Gszz(rho1, rho2, z, wl) + \
           G0zz(rho1, 0., 0., rho2, 0., z, wl)
     return(alpha0(wl) / (1 - alpha0(wl) * k1_inc(wl)**2 / const.epsilon0 * GGG))
-    
+    #return(alpha0(wl)**2 * k1_inc(wl)**2 / const.epsilon0 * GGG)
 
 # z may be a numpy array! Should be fast
 # considered that d/dz mu = 0
@@ -223,6 +229,31 @@ def force(rho1, rho2, z, wl):
     
     return(Fz.real * RE.real)
 
+def force_grad_scat(rho1, rho2, z, wl):
+    al_eff = alpha_eff(rho1, rho2, z, wl)
+    al_eff_RE = al_eff.real
+    al_eff_IM = al_eff.imag
+    
+    Fz_grad = 0.5 * al_eff_RE**2 * \
+         E0_charastic * E0_charastic.conjugate() / const.epsilon0
+         
+    Fz_scat = 0.5 * al_eff_IM**2 * \
+         E0_charastic * E0_charastic.conjugate() / const.epsilon0
+         
+    z_plus = z + dz
+    z_minus = z - dz
+    
+    G_plus =  Gszz(rho1, rho2, z_plus, wl) + \
+              G0zz(rho1, 0., 0., rho2, 0., z_plus, wl)
+              
+    G_minus = Gszz(rho1, rho2, z_minus, wl) + \
+              G0zz(rho1, 0., 0., rho2, 0., z_minus, wl)
+              
+    RE = k1_inc(wl)**2 * (G_plus - G_minus) * 0.5 / dz
+    
+    return(Fz_grad.real * RE.real, Fz_scat.real * RE.real)
+
+
 def plot_F_wl(rho1, rho2, z, wl):
     f = force(rho1, rho2, z, wl)
     plt.rcParams.update({'font.size': 12})
@@ -237,12 +268,16 @@ def plot_F_wl(rho1, rho2, z, wl):
 
 def plot_F(rho1, rho2, z, wl):
     f = force(rho1, rho2, z, wl)
+    f_grad, f_scat = force_grad_scat(rho1, rho2, z, wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
-    plt.plot(z*1e6, f)
+    plt.plot(z/a_charastic, f, label='total')
+    plt.plot(z/a_charastic, f_grad, label='gradient part', linestyle='--', alpha=.5)
+    plt.plot(z/a_charastic, f_scat, label='scatering part', linestyle='--', alpha=.5)
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
-    plt.xlabel(r'$\Delta z$, $\mu$m')
+    plt.xlabel(r'$\Delta z /a$')
     plt.ylabel(r'$Fz$, N')
+    plt.legend()
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
     plt.show()
@@ -251,10 +286,11 @@ def plot_alpha_z(rho1, rho2, z, wl):
     al = alpha_eff(rho1,rho2, z, wl)/alpha0(wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
-    plt.plot(z*1e6, al)
+    plt.plot(z/a_charastic, al.real, label='Re')
+    plt.plot(z/a_charastic, al.imag, label='Im', linestyle='--')
     plt.legend()
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
-    plt.xlabel(r'$\Delta z$, $\mu$m')
+    plt.xlabel(r'$\Delta z/a$')
     plt.ylabel(r'$\alpha_{eff} / \alpha_0$')
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
@@ -266,11 +302,13 @@ def plot_G_z(rho1, rho2, z, wl):
     al2 = Gszz(rho1, rho2, z, wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
-    plt.plot(z*1e6, al, label=r'$G_0$')
-    plt.plot(z*1e6, al2, label=r'$G_s$')
+    plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
+    plt.plot(z/a_charastic, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
+    plt.plot(z/a_charastic, al2.real, label=r'Re $G_s$', color='blue')
+    plt.plot(z/a_charastic, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
     plt.legend()
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
-    plt.xlabel(r'$\Delta z$, $\mu$m')
+    plt.xlabel(r'$\Delta z/a$')
     plt.ylabel('Greens function')
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
@@ -293,8 +331,8 @@ def plot_kz():
 
 #plt.xkcd()        # on
 #plt.rcdefaults()  # off
-plot_F_wl(rho_c + gap, rho_c + gap, 30*a_charastic, np.linspace(400, 1300, 4000)*1e-9)
-plot_F(rho_c + gap, rho_c + gap, np.linspace(0.2e-6, 1.5e-6, 30000), 600e-9)
-plot_alpha_z(rho_c + gap, rho_c + gap, np.linspace(0.2e-6, 1.5e-6, 30000), 600e-9)
-plot_G_z(rho_c + gap, rho_c + gap, np.linspace(0.2e-6, 1.5e-6, 30000), 600e-9)
+plot_F_wl(rho_c + gap, rho_c + gap, 3*a_charastic, np.linspace(400, 1300, 400)*1e-9)
+plot_F(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
+plot_alpha_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
+plot_G_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
 

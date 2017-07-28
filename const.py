@@ -17,6 +17,8 @@ mu0 = 4 * np.pi * 1e-7  # [H / m]
 # vacuum permittivity
 epsilon0 = 1 / (mu0 * c**2)  # [F/m]
 
+Z0 = np.sqrt(mu0 / epsilon0)
+
 # elementary charge
 e = 1.6e-19  # [C]
 # electron mass

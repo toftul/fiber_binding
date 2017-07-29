@@ -9,38 +9,40 @@ import numpy as np
 #from scipy.integrate import ode, quad
 #from scipy import interpolate
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 #import progressbar
 import scipy.special as sp
 # import my libs
 import const
 
 
-#                
-#                   1 rho                 
-#                   |                  |------> E0
-#                   |                  |  
-#                   |    /-\           |      incident wave
-#                   |   | * |          v k1
-#                   |    \-/
-#                   |
-#                  ##############################
-#                  ~                            ~
-#                  ~           FIBER            ~ -----> z
-#                  ~                            ~
-#                  ##############################
-#                
-#                
-#                 let particles has the same hight -> rho = rho'
+#        
+#           1 rho                 
+#           |                  |------> E0
+#           |                  |  
+#           |    /-\           |      incident wave
+#           |   | * |          v k1
+#           |    \-/
+#           |
+#          ##############################
+#          ~                            ~
+#          ~   FIBER   ---> kz          ~ -----> z
+#          ~                            ~
+#          ##############################
+#        
+#        
+#         let particles has the same hight -> rho = rho'
 
 
 
 # ## Creating variables
-P_laser = 25e-3  # [W]
-R_focus = 10e-6  # [m]
+P_laser = 100e-3  # [W]
+R_focus = 1e-6  # [m]
 
 Intensity = P_laser / (np.pi * R_focus**2)  # [W/m^2]
 
 E0_charastic = np.sqrt(0.5 * const.Z0 * Intensity)
+print('E_0 = %.1e' % (E0_charastic))
 
 # theta = 30 * np.pi / 180
 #E0_charastic = 1e4  # [V/m]
@@ -254,15 +256,25 @@ def force_grad_scat(rho1, rho2, z, wl):
     return(Fz_grad.real * RE.real, Fz_scat.real * RE.real)
 
 
-def plot_F_wl(rho1, rho2, z, wl):
-    f = force(rho1, rho2, z, wl)
+def plot_F_wl(rho1, rho2, wl):
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
-    plt.plot(wl*1e9, f)
+    
+    z_near = np.linspace(2.5*a_charastic, 7*a_charastic, 10)
+    f = np.zeros([len(z_near), len(wl)])
+    cmap = mpl.cm.autumn
+    for i, z in enumerate(z_near):
+        f[i] = force(rho1, rho2, z, wl)
+        if i == 0 or i == len(z_near)-1:
+            plt.plot(wl*1e9, f[i], label='dz/a = %.1f'%(z/a_charastic), color=cmap(i / float(len(z_near))))
+        else:
+            plt.plot(wl*1e9, f[i], color=cmap(i / float(len(z_near))))
+
     #plt.ylim(-1e-20, 1e-20)
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\Delta z$ = %.1f $\mu$m' % (a_charastic*1e9, rho_c*1e9, z*1e6), loc='right')
     plt.xlabel(r'$\lambda$, nm')
     plt.ylabel(r'$Fz$, N')
+    plt.legend()
     plt.grid()
     plt.show()
 
@@ -331,8 +343,10 @@ def plot_kz():
 
 #plt.xkcd()        # on
 #plt.rcdefaults()  # off
-plot_F_wl(rho_c + gap, rho_c + gap, 3*a_charastic, np.linspace(400, 1300, 400)*1e-9)
+plot_F_wl(rho_c + gap, rho_c + gap, np.linspace(400, 1300, 400)*1e-9)
 plot_F(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
 plot_alpha_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
 plot_G_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
+
+
 

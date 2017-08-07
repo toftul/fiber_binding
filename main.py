@@ -47,7 +47,7 @@ print('E_0 = %.1e' % (E0_charastic))
 # theta = 30 * np.pi / 180
 #E0_charastic = 1e4  # [V/m]
 #time_charastic = 10e-3  # [s]
-a_charastic = 0.1e-6 # [m]
+a_charastic = 0.3e-6 # [m]
 # Silicon
 # density_of_particle = 2328.  # [kg / m^3]
 # wave_length = 350e-9  # [nm]
@@ -117,17 +117,17 @@ def G0zz(x1, y1, z1, x2, y2, z2, wl):
 def k1_wg(wl):
     return(2 * np.pi / wl)
 def k2_wg(wl):
-    return(np.sqrt(epsilon_fiber) * k1_wg(wl))
+    return(np.sqrt(epsilon_fiber + 0j) * k1_wg(wl))
 
-omega_c = 2*np.pi / rho_c * 2 / (np.sqrt(epsilon_fiber) + 1) * const.c
+omega_c = 2*np.pi / rho_c * 2 / (np.sqrt(epsilon_fiber + 0j) + 1) * const.c
 def kz_wg(omega):
-    koef = (1 - fd_dist(omega, omega_c, omega_c*0.2)) * (np.sqrt(epsilon_fiber) - 1) + 1
+    koef = (1 - fd_dist(omega, omega_c, omega_c*0.1)) * (np.sqrt(epsilon_fiber + 0j) - 1) + 1
     return(koef / const.c * omega)
 
 def krho1_wg(wl):
-    return(np.sqrt(k1_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)))
+    return(np.sqrt(k1_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)**2  + 0j))
 def krho2_wg(wl):
-    return(np.sqrt(k2_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)))
+    return(np.sqrt(k2_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)**2  + 0j))
 
 def A_(wl):
     return(1/krho2_wg(wl)**2 - 1/krho1_wg(wl)**2)
@@ -189,17 +189,18 @@ def P11NN(wl):
     Hn1 = sp.hankel1(n_mode, kr1rc)
     Hnp1 = sp.h1vp(n_mode, kr1rc)
     F = F_(wl)
+    kzwg = kz_wg(2*np.pi*const.c/wl)
     
-    P = (1/kr2**2 - 1/kr1**2)**2 * kz_wg(2*np.pi*const.c/wl)**2 * epsilon_fiber - \
+    P = (1/kr2**2 - 1/kr1**2)**2 * kzwg**2 * epsilon_fiber - \
         (Jnp2 / (kr2 * Jn2) - Hnp1 / (kr1 * Hn1)) *\
         (Jnp2 * k2**2 / (Jn2 * kr2) - Jnp1 * k1**2 / (Jn1 * kr1)) * rho_c**2
-    
     return(Jn1 / (F * Hn1) * P)
 
 def Gszz(rho, rho_prime, dz, wl):
+    HH = sp.hankel1(n_mode, krho1_wg(wl)*rho) * \
+         sp.hankel1(n_mode, krho1_wg(wl)*rho_prime)
     G = -0.5 * P11NN(wl) * krho1_wg(wl)**2 / (k1_wg(wl)**2) * \
-        sp.hankel1(0, krho1_wg(wl)*rho) * sp.hankel1(0, krho1_wg(wl)*rho_prime) * \
-        np.exp(1j * kz_wg(2*np.pi*const.c/wl) * np.abs(dz))
+        HH * np.exp(1j * kz_wg(2*np.pi*const.c/wl) * np.abs(dz))
     return(G)
 
 # mu_12 = alpha_eff * E0
@@ -340,13 +341,81 @@ def plot_kz():
     plt.plot(np.ones(len(omega))*2*np.pi/rho_c, omega, linestyle='--', dashes=(5, 3), color='gray')
     plt.text(2*np.pi/rho_c*1.05, 0.2e16, r'$\frac{2\pi}{\rho_c}$')
     plt.show()
+    
+# single mode criteria
+def VVV_q(wl):
+    V = 2*np.pi/wl * rho_c * np.sqrt(epsilon_fiber - epsilon_m)
+    Vcr = 2.405
+    lam_c = 1/Vcr * 2*np.pi * rho_c * np.sqrt(epsilon_fiber - epsilon_m)
+    if V < Vcr:
+        print('Single mode condition: PASSED!')
+        #print('V/Vc = %.3f/2.405 < 1'% V)
+    else:
+        print('Single mode condition: FAILED!')
+        #print('V/Vc = %.3f/2.405 > 1'% V)
+    print('lambda critical = %.1f' % (lam_c * 1e9))
 
 #plt.xkcd()        # on
 #plt.rcdefaults()  # off
-plot_F_wl(rho_c + gap, rho_c + gap, np.linspace(400, 1300, 400)*1e-9)
-plot_F(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
-plot_alpha_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
-plot_G_z(rho_c + gap, rho_c + gap, np.linspace(1.5*a_charastic, 14*a_charastic, 300), 580e-9)
+wl = 400e-9
+VVV_q(wl)
+hight = rho_c + gap + a_charastic
+
+plot_F_wl(hight, hight, np.linspace(400, 1300, 400)*1e-9)
+plot_F(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
+plot_alpha_z(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
+plot_G_z(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
 
 
+acrticle_data_gamma = np.array([
+        [0, 1.1999999999999997],
+        [0.05962059620596194, 1.204081632653061],
+        [0.10840108401084003, 1.1959183673469385],
+        [0.14634146341463405, 1.1714285714285713],
+        [0.17344173441734423, 1.1346938775510202],
+        [0.19512195121951215, 1.093877551020408],
+        [0.21138211382113825, 1.0448979591836733],
+        [0.2384823848238482, 1.0122448979591834],
+        [0.2872628726287263, 0.9918367346938772],
+        [0.34688346883468824, 0.9959183673469385],
+        [0.41192411924119243, 1.004081632653061],
+        [0.4715447154471544, 1.008163265306122],
+        [0.5474254742547424, 0.9918367346938772],
+        [0.6124661246612464, 0.9755102040816326],
+        [0.6991869918699187, 0.9632653061224488],
+        [0.7750677506775068, 0.9755102040816326],
+        [0.8455284552845528, 0.9877551020408162],
+        [0.9159891598915988, 1.008163265306122],
+        [0.9918699186991868, 1.004081632653061],
+        [1.067750677506775, 0.9918367346938772],
+        [1.149051490514905, 0.9918367346938772],
+        [1.2411924119241193, 0.9918367346938772],
+        [1.3333333333333333, 1.004081632653061],
+        [1.4146341463414631, 1.0122448979591834],
+        [1.4905149051490512, 1.0122448979591834],
+        [1.5772357723577233, 0.9999999999999998],
+        [1.6476964769647695, 0.9918367346938772],
+        [1.7289972899728998, 0.9999999999999998],
+        [1.8048780487804874, 1.004081632653061],
+        [1.8753387533875336, 1.0122448979591834],
+        [1.9566395663956635, 1.0163265306122446]])
 
+def plot_Gzz_rho(rho_space, wl):
+    G = Gszz(rho_space, rho_space, 0, wl)
+    gamma = G.imag * 3 * wl 
+    plt.rcParams.update({'font.size': 12})
+    plt.figure(figsize=(7.24, 4.24))
+    #plt.plot(rho_space/wl, al.real + 1, label=r'Re $G$', color='red')
+    plt.plot(rho_space/wl, gamma, label=r'$\Gamma$', color='red')
+    #plt.plot(acrticle_data_gamma[:,0], acrticle_data_gamma[:,1], label='article data', linestyle='--')
+    plt.legend()
+    plt.title(r'$\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (rho_c*1e9, wl*1e9), loc='right')
+    plt.xlabel(r'$\Delta z/\lambda$')
+    plt.ylabel(r'$F_p$')
+    #plt.ylim(-1e-18, 1e-18)
+    plt.grid()
+    plt.show()
+
+#wl = 5 * rho_c
+#r0 = np.linspace(0.2*wl, 2*wl, 100)
+#plot_Gzz_rho(r0, wl)

@@ -34,6 +34,7 @@ import const
 #         let particles has the same hight -> rho = rho'
 
 
+KONSTANTA = 2 * np.pi / 500e-9
 
 # ## Creating variables
 P_laser = 100e-3  # [W]
@@ -103,7 +104,7 @@ def k1_inc(wl):
 
 def G0zz(x1, y1, z1, x2, y2, z2, wl):
     Rmod = np.sqrt((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2)
-    
+
     kR = k1_inc(wl) * Rmod
     EXPikR4piR = np.exp(1j * kR) / (4. * np.pi * Rmod)
     A = 1 + (1j * kR - 1) / kR**2
@@ -138,7 +139,8 @@ def C_(wl):
     return(sp.h1vp(n_mode, krho1_wg(wl) * rho_c) / 
            krho1_wg(wl) * sp.hankel1(n_mode, krho1_wg(wl) * rho_c))
 def A_prime(wl):
-    return(2 * kz_wg(wl) * (1/krho2_wg(wl)**4 - 1/krho1_wg(wl)**4))
+    kzwg = kz_wg(2*np.pi*const.c/wl)
+    return(2 * (kzwg/krho2_wg(wl)**4 - kzwg/krho1_wg(wl)**4))
 def B_prime(wl):
     kr2 = krho2_wg(wl)
     kr = kr2 * rho_c
@@ -191,9 +193,15 @@ def P11NN(wl):
     F = F_(wl)
     kzwg = kz_wg(2*np.pi*const.c/wl)
     
-    P = (1/kr2**2 - 1/kr1**2)**2 * kzwg**2 * epsilon_fiber - \
+    P = (kzwg/kr2**2 - kzwg/kr1**2)**2 * epsilon_fiber - \
         (Jnp2 / (kr2 * Jn2) - Hnp1 / (kr1 * Hn1)) *\
         (Jnp2 * k2**2 / (Jn2 * kr2) - Jnp1 * k1**2 / (Jn1 * kr1)) * rho_c**2
+        
+    print('kr1rc=', kr1rc)
+    print('kr2rc=', kr2rc)
+    print('F * K^3 = ', F * KONSTANTA**3)
+    print('P / K = ', Jn1 / (F * Hn1) * P / KONSTANTA)
+    
     return(Jn1 / (F * Hn1) * P)
 
 def Gszz(rho, rho_prime, dz, wl):
@@ -311,8 +319,9 @@ def plot_alpha_z(rho1, rho2, z, wl):
 
 def plot_G_z(rho1, rho2, z, wl):
     #al = alpha_eff(rho1,rho2, z, wl)
-    al = G0zz(rho1, 0., 0., rho2, 0., z, wl)
-    al2 = Gszz(rho1, rho2, z, wl)
+    k = 2 * np.pi / wl
+    al = G0zz(rho1, 0., 0., rho2, 0., z, wl) / k
+    al2 = Gszz(rho1, rho2, z, wl) /k
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
@@ -416,6 +425,6 @@ def plot_Gzz_rho(rho_space, wl):
     plt.grid()
     plt.show()
 
-#wl = 5 * rho_c
-#r0 = np.linspace(0.2*wl, 2*wl, 100)
-#plot_Gzz_rho(r0, wl)
+wl = 5 * rho_c
+r0 = np.linspace(0.2*wl, 2*wl, 100)
+plot_Gzz_rho(r0, wl)

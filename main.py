@@ -34,8 +34,6 @@ import const
 #         let particles has the same hight -> rho = rho'
 
 
-KONSTANTA = 2 * np.pi / 500e-9
-
 # ## Creating variables
 P_laser = 100e-3  # [W]
 R_focus = 1e-6  # [m]
@@ -48,13 +46,13 @@ print('E_0 = %.1e' % (E0_charastic))
 # theta = 30 * np.pi / 180
 #E0_charastic = 1e4  # [V/m]
 #time_charastic = 10e-3  # [s]
-a_charastic = 0.3e-6 # [m]
+a_charastic = 0.1e-6 # [m]
 # Silicon
 # density_of_particle = 2328.  # [kg / m^3]
 # wave_length = 350e-9  # [nm]
 # wave_length_wg = 450e-9  # [nm]
 gamma = 0.  # phenomenological parameter
-epsilon_fiber = 2.07  # SiO2
+epsilon_fiber = 2.09  # SiO2
 epsilon_m = 1.  # Air
 
 
@@ -140,7 +138,7 @@ def C_(wl):
            krho1_wg(wl) * sp.hankel1(n_mode, krho1_wg(wl) * rho_c))
 def A_prime(wl):
     kzwg = kz_wg(2*np.pi*const.c/wl)
-    return(2 * (kzwg/krho2_wg(wl)**4 - kzwg/krho1_wg(wl)**4))
+    return(2 * (kzwg / krho2_wg(wl)**4 - kzwg / krho1_wg(wl)**4))
 def B_prime(wl):
     kr2 = krho2_wg(wl)
     kr = kr2 * rho_c
@@ -171,10 +169,17 @@ def F_(wl):
     kz = kz_wg(2*np.pi*const.c/wl)
     k1 = k1_wg(wl)
     k2 = k2_wg(wl)
+#    print('A = ', np.linalg.norm(A))
+#    print('B = ', np.linalg.norm(B))
+#    print('C = ', np.linalg.norm(C))
+#    print('Ap = ', np.linalg.norm(Ap))
+#    print('Bp = ', np.linalg.norm(Bp))
+#    print('C = ', np.linalg.norm(Cp))
+    
     
     F = - 2 * A * kz * epsilon_fiber * (Ap * kz + A) + \
         ((Bp - Cp) * (k2**2 * B - k1**2 * C) + (B - C) * (k2**2 * Bp - k1**2 * Cp)) * rho_c**2
-    
+
     return(F)
 
 def P11NN(wl):
@@ -197,10 +202,10 @@ def P11NN(wl):
         (Jnp2 / (kr2 * Jn2) - Hnp1 / (kr1 * Hn1)) *\
         (Jnp2 * k2**2 / (Jn2 * kr2) - Jnp1 * k1**2 / (Jn1 * kr1)) * rho_c**2
         
-    print('kr1rc=', kr1rc)
-    print('kr2rc=', kr2rc)
-    print('F * K^3 = ', F * KONSTANTA**3)
-    print('P / K = ', Jn1 / (F * Hn1) * P / KONSTANTA)
+    #print('kr1rc=', kr1rc)
+    #print('kr2rc=', kr2rc)
+    #print('F * K^3 = ', F * KONSTANTA**3)
+    #print('P / K = ', Jn1 / (F * Hn1) * P / KONSTANTA)
     
     return(Jn1 / (F * Hn1) * P)
 
@@ -210,6 +215,73 @@ def Gszz(rho, rho_prime, dz, wl):
     G = -0.5 * P11NN(wl) * krho1_wg(wl)**2 / (k1_wg(wl)**2) * \
         HH * np.exp(1j * kz_wg(2*np.pi*const.c/wl) * np.abs(dz))
     return(G)
+
+######### FROM MATLAB CODE ##########
+######### STATUS: CHECKED! ##########
+def GwgazzF(k, eps1, eps2, rhoc, hight_under_fiber, delta_z, betaval, n=1):
+    # function y = GwgazzF(k, eps1, eps2, rhoc, r1_vec, r2_vec, n, betaval)
+    # - 04.07.2017 -
+    # Calculates waveguided mode contribution to the GF for a given mode 'n'
+    # k - k-vector value;
+    # eps1 - outside; eps2 - inside; rhoc - radius;
+    # r1_vec - reciever; r2_vec - source;
+    # n - order of the mode
+    # i, j - tensor indicies over cylindrical coordinates \rho, \phi, z;
+    # tol - relative tolerance for the sum; |G^{N} - G^{N-1}|/G^{N}; 
+    # betaval - value of the propagation constant
+
+    r1 = rhoc + hight_under_fiber
+    r2 = rhoc + hight_under_fiber
+    p1 = 0
+    p2 = 0
+    z1 = 0
+    z2 = delta_z
+
+    a = np.sqrt(eps1*k**2 - betaval**2 + 0j)
+    b = np.sqrt(eps2*k**2 - betaval**2 + 0j)
+
+    Hn1r = sp.hankel1(n, a*r1)
+    Hn1s = sp.hankel1(n, a*r2)
+
+    DJna = sp.jvp(n, a*rhoc)
+    Jna = sp.jv(n, a*rhoc)
+
+    k1 = np.sqrt(eps1 + 0j)*k
+    k2 = np.sqrt(eps2 + 0j)*k
+    
+    DJnb = sp.jvp(n, b*rhoc)
+    Jnb = sp.jv(n, b*rhoc)
+    DDJnb = sp.jvp(n, b*rhoc, 2)
+    
+    DHna = sp.h1vp(n, a*rhoc)
+    Hna = sp.hankel1(n, a*rhoc)
+    DDHna = sp.h1vp(n, a*rhoc, 2)
+   
+    A = b**(-2) - a**(-2)
+    B = DJnb/(b*Jnb)
+    C = DHna/(a*Hna)
+    
+    AP = 2*betaval*( b**(-4) - a**(-4) )
+    BP = -(DDJnb*betaval*rhoc)/(b**2 * Jnb) + \
+        ( DJnb*betaval*(Jnb/b + rhoc*DJnb) )/(b**2 * Jnb**2)
+    CP = -(DDHna*betaval*rhoc)/(a**2 * Hna) + \
+        ( DHna*betaval*(Hna/a + rhoc*DHna) )/(a**2 * Hna**2)
+    
+    DDT = -2*A*AP*betaval**2 * n**2 - 2*A**2*betaval*n**2 + \
+        ((BP - CP)*(k2**2 * B - k1**2 * C) +
+         (B - C)*(k2**2 * BP - k1**2 * CP) ) * rhoc**2
+ 
+    # Fresnel coefficients 
+    Rnum11nn = (Jna/Hna)*( n**2 * betaval**2 * ( b**(-2) - a**(-2) )**2 - \
+               (DJnb/(b*Jnb) - DHna/(a*Hna) ) * \
+               ( k2**2 * DJnb/(b*Jnb) - k1**2 * DJna/(a*Jna) )*rhoc**2)
+    y = -1/2.0*Rnum11nn/DDT * \
+        a**2 / k1**2 * Hn1r * Hn1s * np.cos(n*(p1 - p2))*np.exp(1j*betaval*np.abs(z1 - z2))
+    if n == 0:
+        y /= 2
+    
+    return(y)
+
 
 # mu_12 = alpha_eff * E0
 # ( 1,2 -- only if rho1 = rho2 )
@@ -321,16 +393,23 @@ def plot_G_z(rho1, rho2, z, wl):
     #al = alpha_eff(rho1,rho2, z, wl)
     k = 2 * np.pi / wl
     al = G0zz(rho1, 0., 0., rho2, 0., z, wl) / k
-    al2 = Gszz(rho1, rho2, z, wl) /k
+    al2 = Gszz(rho1, rho2, z, wl) / k
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
-    plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
-    plt.plot(z/a_charastic, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
-    plt.plot(z/a_charastic, al2.real, label=r'Re $G_s$', color='blue')
-    plt.plot(z/a_charastic, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
+#    plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
+#    plt.plot(z/a_charastic, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
+#    plt.plot(z/a_charastic, al2.real, label=r'Re $G_s$', color='blue')
+#    plt.plot(z/a_charastic, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
+    
+    plt.plot(z/wl, al.real, label=r'Re $G_0$', color='red')
+    plt.plot(z/wl, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
+    plt.plot(z/wl, al2.real, label=r'Re $G_s$', color='blue')
+    plt.plot(z/wl, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
+    
     plt.legend()
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
-    plt.xlabel(r'$\Delta z/a$')
+    #plt.xlabel(r'$\Delta z/a$')
+    plt.xlabel(r'$\Delta z/\lambda$')
     plt.ylabel('Greens function')
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
@@ -366,15 +445,14 @@ def VVV_q(wl):
 
 #plt.xkcd()        # on
 #plt.rcdefaults()  # off
-wl = 400e-9
+wl = 600e-9
 VVV_q(wl)
 hight = rho_c + gap + a_charastic
 
 plot_F_wl(hight, hight, np.linspace(400, 1300, 400)*1e-9)
 plot_F(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
 plot_alpha_z(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-plot_G_z(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-
+plot_G_z(hight, hight, np.linspace(4*a_charastic, 50*a_charastic, 300), wl)
 
 acrticle_data_gamma = np.array([
         [0, 1.1999999999999997],
@@ -428,3 +506,9 @@ def plot_Gzz_rho(rho_space, wl):
 wl = 5 * rho_c
 r0 = np.linspace(0.2*wl, 2*wl, 100)
 plot_Gzz_rho(r0, wl)
+
+def test():
+    wl = 600e-9
+    k = 2 * np.pi / wl
+    G = Gszz(hight, hight, 5*wl, wl) / k
+    print('|G| = ', np.linalg.norm(G))

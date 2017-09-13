@@ -243,7 +243,7 @@ def P11NN(wl):
     
     return(Jn1 / (F * Hn1) * P)
 
-def Gszz(rho, rho_prime, dz, wl):
+def Gszz7777(rho, rho_prime, dz, wl):
     HH = sp.hankel1(n_mode, krho1_wg(wl)*rho) * \
          sp.hankel1(n_mode, krho1_wg(wl)*rho_prime)
     G = -0.5 * P11NN(wl) * krho1_wg(wl)**2 / (k1_wg(wl)**2) * \
@@ -319,35 +319,42 @@ def GwgazzF(k, eps1, eps2, rhoc, hight_under_fiber, delta_z, betaval, n=1):
 
 # mu_12 = alpha_eff * E0
 # ( 1,2 -- only if rho1 = rho2 )
-def alpha_eff(rho1, rho2, z, wl):
+def alpha_eff(rho1, z, wl):
     # Gs(r1, r2) = Gs(r2,r1)
-    GGG = Gszz(rho1, rho2, 0, wl) + Gszz(rho1, rho2, z, wl) + \
-          G0zz(rho1, 0., 0., rho2, 0., z, wl)
+    k = 2 * np.pi / wl
+    beta = kz_wg(2*np.pi*const.c/wl)
+
+    GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, 0, beta)
+    GGG = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, 0, beta) +\
+          GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z, beta) +\
+          G0zz(rho1, 0., 0., rho1, 0., z, wl)
     return(alpha0(wl) / (1 - alpha0(wl) * k1_inc(wl)**2 / const.epsilon0 * GGG))
-    #return(alpha0(wl)**2 * k1_inc(wl)**2 / const.epsilon0 * GGG)
 
 # z may be a numpy array! Should be fast
 # considered that d/dz mu = 0
-def force(rho1, rho2, z, wl):
-    al_eff = alpha_eff(rho1, rho2, z, wl)
+def force(rho1, z, wl):
+    al_eff = alpha_eff(rho1, z, wl)
     Fz = 0.5 * al_eff * al_eff.conjugate() * \
          E0_charastic * E0_charastic.conjugate() / const.epsilon0
          
     z_plus = z + dz
     z_minus = z - dz
     
-    G_plus =  Gszz(rho1, rho2, z_plus, wl) + \
-              G0zz(rho1, 0., 0., rho2, 0., z_plus, wl)
+    k = 2 * np.pi / wl
+    beta = kz_wg(2*np.pi*const.c/wl)
+    
+    G_plus = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_plus, beta) + \
+              G0zz(rho1, 0., 0., rho1, 0., z_plus, wl)
               
-    G_minus = Gszz(rho1, rho2, z_minus, wl) + \
-              G0zz(rho1, 0., 0., rho2, 0., z_minus, wl)
+    G_minus = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_minus, beta) + \
+              G0zz(rho1, 0., 0., rho1, 0., z_minus, wl)
               
     RE = k1_inc(wl)**2 * (G_plus - G_minus) * 0.5 / dz
     
     return(Fz.real * RE.real)
 
-def force_grad_scat(rho1, rho2, z, wl):
-    al_eff = alpha_eff(rho1, rho2, z, wl)
+def force_grad_scat(rho1, z, wl):
+    al_eff = alpha_eff(rho1, z, wl)
     al_eff_RE = al_eff.real
     al_eff_IM = al_eff.imag
     
@@ -360,18 +367,21 @@ def force_grad_scat(rho1, rho2, z, wl):
     z_plus = z + dz
     z_minus = z - dz
     
-    G_plus =  Gszz(rho1, rho2, z_plus, wl) + \
-              G0zz(rho1, 0., 0., rho2, 0., z_plus, wl)
+    k = 2 * np.pi / wl
+    beta = kz_wg(2*np.pi*const.c/wl)
+    
+    G_plus =  GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_plus, beta) + \
+              G0zz(rho1, 0., 0., rho1, 0., z_plus, wl)
               
-    G_minus = Gszz(rho1, rho2, z_minus, wl) + \
-              G0zz(rho1, 0., 0., rho2, 0., z_minus, wl)
+    G_minus = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_minus, beta) + \
+              G0zz(rho1, 0., 0., rho1, 0., z_minus, wl)
               
     RE = k1_inc(wl)**2 * (G_plus - G_minus) * 0.5 / dz
     
     return(Fz_grad.real * RE.real, Fz_scat.real * RE.real)
 
 
-def plot_F_wl(rho1, rho2, wl):
+def plot_F_wl(rho1, wl):
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     
@@ -379,7 +389,7 @@ def plot_F_wl(rho1, rho2, wl):
     f = np.zeros([len(z_near), len(wl)])
     cmap = mpl.cm.autumn
     for i, z in enumerate(z_near):
-        f[i] = force(rho1, rho2, z, wl)
+        f[i] = force(rho1, z, wl)
         if i == 0 or i == len(z_near)-1:
             plt.plot(wl*1e9, f[i], label='dz/a = %.1f'%(z/a_charastic), color=cmap(i / float(len(z_near))))
         else:
@@ -393,9 +403,9 @@ def plot_F_wl(rho1, rho2, wl):
     plt.grid()
     plt.show()
 
-def plot_F(rho1, rho2, z, wl):
-    f = force(rho1, rho2, z, wl)
-    f_grad, f_scat = force_grad_scat(rho1, rho2, z, wl)
+def plot_F(rho1, z, wl):
+    f = force(rho1, z, wl)
+    f_grad, f_scat = force_grad_scat(rho1, z, wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     plt.plot(z/a_charastic, f, label='total')
@@ -409,8 +419,8 @@ def plot_F(rho1, rho2, z, wl):
     plt.grid()
     plt.show()
     
-def plot_alpha_z(rho1, rho2, z, wl):
-    al = alpha_eff(rho1,rho2, z, wl)/alpha0(wl)
+def plot_alpha_z(rho1, z, wl):
+    al = alpha_eff(rho1, z, wl)/alpha0(wl)
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     plt.plot(z/a_charastic, al.real, label='Re')
@@ -423,11 +433,12 @@ def plot_alpha_z(rho1, rho2, z, wl):
     plt.grid()
     plt.show()    
 
-def plot_G_z(rho1, rho2, z, wl):
+def plot_G_z(rho1, z, wl):
     #al = alpha_eff(rho1,rho2, z, wl)
     k = 2 * np.pi / wl
-    al = G0zz(rho1, 0., 0., rho2, 0., z, wl) / k
-    al2 = Gszz(rho1, rho2, z, wl) / k
+    beta = kz_wg(2*np.pi*const.c/wl)
+    al = G0zz(rho1, 0., 0., rho1, 0., z, wl) / k
+    al2 = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z, beta) / k
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
 #    plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
@@ -501,10 +512,10 @@ wl = 600e-9
 VVV_q(wl)
 hight = rho_c + gap + a_charastic
 
-plot_F_wl(hight, hight, np.linspace(400, 1300, 400)*1e-9)
-plot_F(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-plot_alpha_z(hight, hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-plot_G_z(hight, hight, np.linspace(4*a_charastic, 50*a_charastic, 300), wl)
+plot_F_wl(hight, np.linspace(400, 1300, 400)*1e-9)
+plot_F(hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
+plot_alpha_z(hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
+plot_G_z(hight, np.linspace(4*a_charastic, 50*a_charastic, 300), wl)
 
 acrticle_data_gamma = np.array([
         [0, 1.1999999999999997],
@@ -540,7 +551,9 @@ acrticle_data_gamma = np.array([
         [1.9566395663956635, 1.0163265306122446]])
 
 def plot_Gzz_rho(rho_space, wl):
-    G = Gszz(rho_space, rho_space, 0, wl)
+    k = 2 * np.pi / wl
+    beta = kz_wg(2*np.pi*const.c/wl)
+    G = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho_space - rho_c, 0, beta)
     gamma = G.imag * 3 * wl 
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))

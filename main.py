@@ -47,7 +47,7 @@ print('E_0 = %.1e' % (E0_charastic))
 # theta = 30 * np.pi / 180
 #E0_charastic = 1e4  # [V/m]
 #time_charastic = 10e-3  # [s]
-a_charastic = 0.1e-6 # [m]
+a_charastic = 0.2e-6 # [m]
 # Silicon
 # density_of_particle = 2328.  # [kg / m^3]
 # wave_length = 350e-9  # [nm]
@@ -59,7 +59,7 @@ epsilon_m = 1.  # Air
 
 # fiber radius
 # Wu and Tong, Nanophotonics 2, 407 (2013)
-rho_c = 0.2e-6  # [m]
+rho_c = 0.1e-6  # [m]
 
 # must be int
 n_mode = 1  # for HE11
@@ -151,16 +151,27 @@ def get_beta_val(wl, R_fiber, epsilon_in, epsilon_out):
     return(beta_root)
 
 
-omega_c = 2*np.pi / rho_c * 2 / (np.sqrt(epsilon_fiber + 0j) + 1) * const.c
-def kz_wg(omega):
+#omega_c = 2*np.pi / rho_c * 2 / (np.sqrt(epsilon_fiber + 0j) + 1) * const.c
+def kz_wg(wl):
     #koef = (1 - fd_dist(omega, omega_c, omega_c*0.5)) * (np.sqrt(epsilon_fiber + 0j) - 1) + 1
     #return(koef / const.c * omega)
-    return(get_beta_val(2*np.pi * const.c / omega, rho_c, epsilon_fiber, epsilon_m))
+
+    # checking if omege is an array
+    # TRUE -- array, FALSE -- scalar
+    if hasattr(wl, "__len__"):
+        beta = np.zeros(len(wl))
+        for i, lam in enumerate(wl):
+            beta[i] = get_beta_val(lam, rho_c, epsilon_fiber, epsilon_m)
+    else:
+        beta = get_beta_val(wl, rho_c, epsilon_fiber, epsilon_m)
+        
+        
+    return beta
 
 def krho1_wg(wl):
-    return(np.sqrt(k1_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)**2  + 0j))
+    return(np.sqrt(k1_wg(wl)**2 - kz_wg(wl)**2  + 0j))
 def krho2_wg(wl):
-    return(np.sqrt(k2_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)**2  + 0j))
+    return(np.sqrt(k2_wg(wl)**2 - kz_wg(wl)**2  + 0j))
 
 def A_(wl):
     return(1/krho2_wg(wl)**2 - 1/krho1_wg(wl)**2)
@@ -171,7 +182,7 @@ def C_(wl):
     return(sp.h1vp(n_mode, krho1_wg(wl) * rho_c) / 
            krho1_wg(wl) * sp.hankel1(n_mode, krho1_wg(wl) * rho_c))
 def A_prime(wl):
-    kzwg = kz_wg(2*np.pi*const.c/wl)
+    kzwg = kz_wg(wl)
     return(2 * (kzwg / krho2_wg(wl)**4 - kzwg / krho1_wg(wl)**4))
 def B_prime(wl):
     kr2 = krho2_wg(wl)
@@ -180,8 +191,8 @@ def B_prime(wl):
     Jnp = sp.jvp(n_mode, kr)
     Jnpp = sp.jvp(n_mode, kr, 2)
     
-    B1 = - Jnpp * kz_wg(2*np.pi*const.c/wl) * rho_c / (kr2**2 * Jn)
-    B2 = Jnp * kz_wg(2*np.pi*const.c/wl) * (Jn / kr2 + rho_c * Jnp) / (kr2 * Jn)**2
+    B1 = - Jnpp * kz_wg(wl) * rho_c / (kr2**2 * Jn)
+    B2 = Jnp * kz_wg(wl) * (Jn / kr2 + rho_c * Jnp) / (kr2 * Jn)**2
     return(B1 + B2)
 def C_prime(wl):
     kr1 = krho1_wg(wl)
@@ -190,8 +201,8 @@ def C_prime(wl):
     Hnp = sp.h1vp(n_mode, kr)
     Hnpp = sp.h1vp(n_mode, kr, 2)
     
-    C1 = - Hnpp * kz_wg(2*np.pi*const.c/wl) * rho_c / (kr1**2 * Hn)
-    C2 = Hnp * kz_wg(2*np.pi*const.c/wl) * (Hn / kr1 + rho_c * Hnp) / (kr1 * Hn)**2
+    C1 = - Hnpp * kz_wg(wl) * rho_c / (kr1**2 * Hn)
+    C2 = Hnp * kz_wg(wl) * (Hn / kr1 + rho_c * Hnp) / (kr1 * Hn)**2
     return(C1 + C2)
 def F_(wl):
     A = A_(wl)
@@ -200,7 +211,7 @@ def F_(wl):
     Bp = B_prime(wl)
     C = C_(wl)
     Cp = C_prime(wl)
-    kz = kz_wg(2*np.pi*const.c/wl)
+    kz = kz_wg(wl)
     k1 = k1_wg(wl)
     k2 = k2_wg(wl)
 #    print('A = ', np.linalg.norm(A))
@@ -230,7 +241,7 @@ def P11NN(wl):
     Hn1 = sp.hankel1(n_mode, kr1rc)
     Hnp1 = sp.h1vp(n_mode, kr1rc)
     F = F_(wl)
-    kzwg = kz_wg(2*np.pi*const.c/wl)
+    kzwg = kz_wg(wl)
     
     P = (kzwg/kr2**2 - kzwg/kr1**2)**2 * epsilon_fiber - \
         (Jnp2 / (kr2 * Jn2) - Hnp1 / (kr1 * Hn1)) *\
@@ -243,11 +254,11 @@ def P11NN(wl):
     
     return(Jn1 / (F * Hn1) * P)
 
-def Gszz7777(rho, rho_prime, dz, wl):
+def Gszz(rho, rho_prime, dz, wl):
     HH = sp.hankel1(n_mode, krho1_wg(wl)*rho) * \
          sp.hankel1(n_mode, krho1_wg(wl)*rho_prime)
     G = -0.5 * P11NN(wl) * krho1_wg(wl)**2 / (k1_wg(wl)**2) * \
-        HH * np.exp(1j * kz_wg(2*np.pi*const.c/wl) * np.abs(dz))
+        HH * np.exp(1j * kz_wg(wl) * np.abs(dz))
     return(G)
 
 ######### FROM MATLAB CODE ##########
@@ -322,7 +333,7 @@ def GwgazzF(k, eps1, eps2, rhoc, hight_under_fiber, delta_z, betaval, n=1):
 def alpha_eff(rho1, z, wl):
     # Gs(r1, r2) = Gs(r2,r1)
     k = 2 * np.pi / wl
-    beta = kz_wg(2*np.pi*const.c/wl)
+    beta = kz_wg(wl)
 
     GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, 0, beta)
     GGG = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, 0, beta) +\
@@ -341,7 +352,7 @@ def force(rho1, z, wl):
     z_minus = z - dz
     
     k = 2 * np.pi / wl
-    beta = kz_wg(2*np.pi*const.c/wl)
+    beta = kz_wg(wl)
     
     G_plus = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_plus, beta) + \
               G0zz(rho1, 0., 0., rho1, 0., z_plus, wl)
@@ -368,7 +379,7 @@ def force_grad_scat(rho1, z, wl):
     z_minus = z - dz
     
     k = 2 * np.pi / wl
-    beta = kz_wg(2*np.pi*const.c/wl)
+    beta = kz_wg(wl)
     
     G_plus =  GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z_plus, beta) + \
               G0zz(rho1, 0., 0., rho1, 0., z_plus, wl)
@@ -436,7 +447,7 @@ def plot_alpha_z(rho1, z, wl):
 def plot_G_z(rho1, z, wl):
     #al = alpha_eff(rho1,rho2, z, wl)
     k = 2 * np.pi / wl
-    beta = kz_wg(2*np.pi*const.c/wl)
+    beta = kz_wg(wl)
     al = G0zz(rho1, 0., 0., rho1, 0., z, wl) / k
     al2 = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho1 - rho_c, z, beta) / k
     plt.rcParams.update({'font.size': 12})
@@ -446,16 +457,16 @@ def plot_G_z(rho1, z, wl):
 #    plt.plot(z/a_charastic, al2.real, label=r'Re $G_s$', color='blue')
 #    plt.plot(z/a_charastic, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
     
-    plt.plot(z/wl, al.real, label=r'Re $G_0$', color='red')
-    plt.plot(z/wl, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
-    plt.plot(z/wl, al2.real, label=r'Re $G_s$', color='blue')
-    plt.plot(z/wl, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
+    plt.plot(z/a_charastic, al.real, label=r'Re $G_0$', color='red')
+    plt.plot(z/a_charastic, al.imag, label=r'Im $G_0$', color='red', linestyle='--', alpha=0.4)
+    plt.plot(z/a_charastic, al2.real, label=r'Re $G_s$', color='blue')
+    plt.plot(z/a_charastic, al2.imag, label=r'Im $G_s$', color='blue', linestyle='--', alpha=0.4)
     
     plt.legend()
     plt.title(r'a = %.0f nm, $\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (a_charastic*1e9, rho_c*1e9, wl*1e9), loc='right')
     #plt.xlabel(r'$\Delta z/a$')
-    plt.xlabel(r'$\Delta z/\lambda$')
-    plt.ylabel('Greens function')
+    plt.xlabel(r'$\Delta z/a$')
+    plt.ylabel(r'$G/k_0$')
     #plt.ylim(-1e-18, 1e-18)
     plt.grid()
     plt.show()
@@ -468,11 +479,11 @@ def plot_kz():
     omega = 2*np.pi*const.c/lam
     plt.xlabel(r'$k_z / k_{\rho_c}$')
     plt.ylabel(r'$\omega / \omega_{\rho_c}$')
-    plt.xlim(0, (np.max(kz_wg(omega)) + np.max(kz_wg(omega))/20) / ka)
+    plt.xlim(0, (np.max(kz_wg(lam)) + np.max(kz_wg(lam))/20) / ka)
     plt.ylim(0, (np.max(omega) + np.max(omega)/20) / wa)
     beta = np.zeros(len(lam))
-    for i,w in enumerate(omega):
-        beta[i] = kz_wg(w)
+    for i,l in enumerate(lam):
+        beta[i] = kz_wg(l)
     plt.plot(beta/ka, omega/wa)
     plt.plot(omega/const.c  / ka, omega / wa, linestyle='--', color='black')
     plt.plot(np.sqrt(epsilon_fiber)*omega/const.c  / ka, omega / wa, linestyle='--', color='black')
@@ -508,58 +519,26 @@ def VVV_q(wl):
 
 #plt.xkcd()        # on
 #plt.rcdefaults()  # off
-wl = 600e-9
+wl = 550e-9
 VVV_q(wl)
 hight = rho_c + gap + a_charastic
 
-plot_F_wl(hight, np.linspace(400, 1300, 400)*1e-9)
-plot_F(hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-plot_alpha_z(hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
-plot_G_z(hight, np.linspace(4*a_charastic, 50*a_charastic, 300), wl)
+plot_F_wl(hight, np.linspace(400, 1300, 50)*1e-9)
+plot_F(hight, np.linspace(2*a_charastic, 30*a_charastic, 300), wl)
+#plot_alpha_z(hight, np.linspace(1.5*a_charastic, 14*a_charastic, 300), wl)
+plot_G_z(hight, np.linspace(2*a_charastic, 30*a_charastic, 300), wl)
 
-acrticle_data_gamma = np.array([
-        [0, 1.1999999999999997],
-        [0.05962059620596194, 1.204081632653061],
-        [0.10840108401084003, 1.1959183673469385],
-        [0.14634146341463405, 1.1714285714285713],
-        [0.17344173441734423, 1.1346938775510202],
-        [0.19512195121951215, 1.093877551020408],
-        [0.21138211382113825, 1.0448979591836733],
-        [0.2384823848238482, 1.0122448979591834],
-        [0.2872628726287263, 0.9918367346938772],
-        [0.34688346883468824, 0.9959183673469385],
-        [0.41192411924119243, 1.004081632653061],
-        [0.4715447154471544, 1.008163265306122],
-        [0.5474254742547424, 0.9918367346938772],
-        [0.6124661246612464, 0.9755102040816326],
-        [0.6991869918699187, 0.9632653061224488],
-        [0.7750677506775068, 0.9755102040816326],
-        [0.8455284552845528, 0.9877551020408162],
-        [0.9159891598915988, 1.008163265306122],
-        [0.9918699186991868, 1.004081632653061],
-        [1.067750677506775, 0.9918367346938772],
-        [1.149051490514905, 0.9918367346938772],
-        [1.2411924119241193, 0.9918367346938772],
-        [1.3333333333333333, 1.004081632653061],
-        [1.4146341463414631, 1.0122448979591834],
-        [1.4905149051490512, 1.0122448979591834],
-        [1.5772357723577233, 0.9999999999999998],
-        [1.6476964769647695, 0.9918367346938772],
-        [1.7289972899728998, 0.9999999999999998],
-        [1.8048780487804874, 1.004081632653061],
-        [1.8753387533875336, 1.0122448979591834],
-        [1.9566395663956635, 1.0163265306122446]])
+
 
 def plot_Gzz_rho(rho_space, wl):
     k = 2 * np.pi / wl
-    beta = kz_wg(2*np.pi*const.c/wl)
+    beta = kz_wg(wl)
     G = GwgazzF(k, epsilon_m, epsilon_fiber, rho_c, rho_space - rho_c, 0, beta)
     gamma = G.imag * 3 * wl 
     plt.rcParams.update({'font.size': 12})
     plt.figure(figsize=(7.24, 4.24))
     #plt.plot(rho_space/wl, al.real + 1, label=r'Re $G$', color='red')
     plt.plot(rho_space/wl, gamma, label=r'$\Gamma$', color='red')
-    #plt.plot(acrticle_data_gamma[:,0], acrticle_data_gamma[:,1], label='article data', linestyle='--')
     plt.legend()
     plt.title(r'$\rho_c$ = %.0f nm, $\lambda$ = %.1f nm' % (rho_c*1e9, wl*1e9), loc='right')
     plt.xlabel(r'$\Delta z/\lambda$')
@@ -568,7 +547,7 @@ def plot_Gzz_rho(rho_space, wl):
     plt.grid()
     plt.show()
 
-wl = 5 * rho_c
-r0 = np.linspace(0.2*wl, 2*wl, 100)
-plot_Gzz_rho(r0, wl)
+#wl = 5 * rho_c
+#r0 = np.linspace(0.2*wl, 2*wl, 100)
+#plot_Gzz_rho(r0, wl)
 

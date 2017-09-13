@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 #import progressbar
+import scipy
 import scipy.special as sp
 # import my libs
 import const
@@ -118,10 +119,43 @@ def k1_wg(wl):
 def k2_wg(wl):
     return(np.sqrt(epsilon_fiber + 0j) * k1_wg(wl))
 
+# Solving eq(7) from "Optical nanoﬁbres and neutral atoms"
+def he11_dispertion_eq(beta, k0, R_fiber, epsilon_in, epsilon_out):
+    h = np.sqrt(epsilon_in * k0**2 - beta**2 + 0j)
+    q = np.sqrt(beta**2 - epsilon_out * k0**2 + 0j)
+    ha = h*R_fiber
+    qa = q*R_fiber
+    nnn_plus = 0.5 * (1 + epsilon_out / epsilon_in)
+    nnn_minus = 0.5 * (1 - epsilon_out / epsilon_in)
+    J0ha = sp.jn(0, ha)
+    J1ha = sp.jv(1, ha)
+    K1qa = sp.kv(1, qa)
+    DK1qa = sp.kvp(1, qa) 
+    
+    
+    
+    Kp_qaK1 = DK1qa / (qa * K1qa)
+    
+    f_beta = J0ha / (ha * J1ha) + nnn_plus*Kp_qaK1 - 1.0/ha**2 + \
+             np.sqrt(0j + (nnn_minus*Kp_qaK1)**2 + (beta/k0)**2 / epsilon_in * (1/qa**2 + 1/ha**2)**2 )
+    return(np.real(f_beta))
+
+def get_beta_val(wl, R_fiber, epsilon_in, epsilon_out):
+    # set k0 = 1, so
+    k0 = 2*np.pi/wl
+    # works okay for the HE11 mode
+    approx_beta = 0.95 * k0 * np.sqrt(epsilon_in)
+    beta_root = scipy.optimize.fsolve(he11_dispertion_eq, approx_beta, 
+                                      args=(k0, R_fiber, epsilon_in, epsilon_out))
+    
+    return(beta_root)
+
+
 omega_c = 2*np.pi / rho_c * 2 / (np.sqrt(epsilon_fiber + 0j) + 1) * const.c
 def kz_wg(omega):
-    koef = (1 - fd_dist(omega, omega_c, omega_c*0.1)) * (np.sqrt(epsilon_fiber + 0j) - 1) + 1
-    return(koef / const.c * omega)
+    #koef = (1 - fd_dist(omega, omega_c, omega_c*0.5)) * (np.sqrt(epsilon_fiber + 0j) - 1) + 1
+    #return(koef / const.c * omega)
+    return(get_beta_val(2*np.pi * const.c / omega, rho_c, epsilon_fiber, epsilon_m))
 
 def krho1_wg(wl):
     return(np.sqrt(k1_wg(wl)**2 - kz_wg(2*np.pi*const.c/wl)**2  + 0j))
@@ -416,19 +450,37 @@ def plot_G_z(rho1, rho2, z, wl):
     plt.show()
     
 def plot_kz():
+    ka = 2*np.pi / rho_c
+    wa = ka * const.c
     plt.rcParams.update({'font.size': 14})
-    lam = np.linspace(200, 4200, 200) * 1e-9
+    lam = np.linspace(160, 3000, 200) * 1e-9
     omega = 2*np.pi*const.c/lam
-    plt.xlabel(r'$k z$, m$^{-1}$')
-    plt.ylabel(r'$\omega$, s$^{-1}$')
-    plt.xlim(0, np.max(kz_wg(omega)) + np.max(kz_wg(omega))/20)
-    plt.ylim(0, np.max(omega) + np.max(omega)/20)
-    plt.plot(kz_wg(omega), omega)
-    plt.plot(omega/const.c, omega, linestyle='--', color='black')
-    plt.plot(np.sqrt(epsilon_fiber)*omega/const.c, omega, linestyle='--', color='black')
-    plt.plot(np.ones(len(omega))*2*np.pi/rho_c, omega, linestyle='--', dashes=(5, 3), color='gray')
-    plt.text(2*np.pi/rho_c*1.05, 0.2e16, r'$\frac{2\pi}{\rho_c}$')
+    plt.xlabel(r'$k_z / k_{\rho_c}$')
+    plt.ylabel(r'$\omega / \omega_{\rho_c}$')
+    plt.xlim(0, (np.max(kz_wg(omega)) + np.max(kz_wg(omega))/20) / ka)
+    plt.ylim(0, (np.max(omega) + np.max(omega)/20) / wa)
+    beta = np.zeros(len(lam))
+    for i,w in enumerate(omega):
+        beta[i] = kz_wg(w)
+    plt.plot(beta/ka, omega/wa)
+    plt.plot(omega/const.c  / ka, omega / wa, linestyle='--', color='black')
+    plt.plot(np.sqrt(epsilon_fiber)*omega/const.c  / ka, omega / wa, linestyle='--', color='black')
+    plt.plot(np.ones(len(omega))*2*np.pi/rho_c  / ka, omega / wa, linestyle='--', dashes=(5, 3), color='gray')
+    plt.text(2*np.pi/rho_c*1.05 / ka, 0.2e16 / wa, r'$\frac{2\pi}{\rho_c}$')
     plt.show()
+    
+
+def plot_k_vs_V():
+    wl_space = np.linspace(170, 2000, 500) * 1e-9
+    V = 2*np.pi*rho_c / wl_space * np.sqrt(epsilon_fiber - epsilon_m)
+    beta_k = np.zeros(len(V))
+    for i, wl in enumerate(wl_space):
+        beta_k[i] = get_beta_val(wl, rho_c, epsilon_fiber, epsilon_m)*wl/(2*np.pi)
+    plt.plot(V, beta_k)
+    plt.grid()
+    #plt.ylim([1, 1.5])
+    plt.xlabel(r'$V$')
+    plt.ylabel(r'$\beta/k_0$')
     
 # single mode criteria
 def VVV_q(wl):
@@ -507,8 +559,3 @@ wl = 5 * rho_c
 r0 = np.linspace(0.2*wl, 2*wl, 100)
 plot_Gzz_rho(r0, wl)
 
-def test():
-    wl = 600e-9
-    k = 2 * np.pi / wl
-    G = Gszz(hight, hight, 5*wl, wl) / k
-    print('|G| = ', np.linalg.norm(G))
